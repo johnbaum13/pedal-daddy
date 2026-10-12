@@ -216,7 +216,7 @@ code{font-family:var(--font-mono);font-size:.82em;background:#0c0d0f;border:1px 
         <li>Set <b>Output device</b> to your Apollo or speakers. This step matters: if the pedalboard also plays into BlackHole, it feeds itself.</li>
         <li>Open your synth in another tab and play. Guitar works too: set Input device to the Apollo instead.</li>
       </ol>
-      <p class="sub">Use Chrome. Run this file from GitHub Pages or open it directly from your drive. Echo cancellation and noise suppression are switched off so the browser doesn't scrub your tone.</p>
+      <p class="sub">Use Chrome, and open the board from GitHub Pages or <code>http://localhost</code>. Opened straight from your drive, Chrome won't let it pick an output device. Echo cancellation and noise suppression are switched off so the browser doesn't scrub your tone.</p>
     </section>
   </div>
 </div>
@@ -627,7 +627,10 @@ const PedalKit = (() => {
     fill($('#outDev'), 'audiooutput', 'System default', state.outDev);
     $('#outDev').disabled = !sinkOK;
     const outs = $('#outDev').options.length - 1;
+    const ins = $('#inDev').options.length - 1;
     if (!sinkOK) banner('This browser can\'t choose an output device, so the board plays to the system output. If that is BlackHole you will hear nothing and risk a feedback loop. Use Chrome.', 'warn');
+    else if (!outs && ins && location.protocol === 'file:') banner('Chrome won\'t list output devices for a file opened from your drive. Open the board from GitHub Pages or http://localhost instead, and the speakers will show up here.', 'warn');
+    else if (!outs && ins) banner('Chrome listed your inputs but no outputs. Open the board in a regular Chrome tab (not inside another app), from GitHub Pages or http://localhost.', 'warn');
     else if (!outs) banner('Chrome hides your speakers and interfaces until this page has audio-input permission. Press Rescan and choose Allow.', 'info');
     else if ($('#banner').dataset.kind === 'info' && /Rescan/.test($('#banner').textContent)) banner('');
     checkLoop();
@@ -637,12 +640,12 @@ const PedalKit = (() => {
   async function rescan() {
     try {
       const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      await refreshDevices();                       // list while the probe is still open
       probe.getTracks().forEach(t => t.stop());
     } catch (e) {
       banner('Chrome blocked audio access, so it won\'t list your devices. Click the icon at the left of the address bar, allow the microphone, then press Rescan.', 'danger');
       return;
     }
-    await refreshDevices();
     if (ctx && state.outDev) await applyOutput(state.outDev);
   }
 
@@ -657,10 +660,12 @@ const PedalKit = (() => {
     if (!ctx) return;
     const inL = state.source === 'live' ? labelOf($('#inDev')) : '';
     const outL = labelOf($('#outDev'));
-    const loop = /blackhole/i.test(inL) && /blackhole/i.test(outL);
+    const inBH = /blackhole/i.test(inL);
+    const loop = inBH && (/blackhole/i.test(outL) || !$('#outDev').value);
     outMuted = loop;
     master.gain.setTargetAtTime(loop ? 0 : state.master, ctx.currentTime, 0.02);
-    if (loop) banner('Output muted: input and output are both BlackHole, which would feed the board back into itself. Set Output device to your Apollo or speakers.', 'danger');
+    if (loop && !$('#outDev').value) banner('Output muted: input is BlackHole and the board is set to System default, which is BlackHole too, so it would feed back into itself. Choose your speakers in Output device. If that list is empty, open the board from GitHub Pages or http://localhost.', 'danger');
+    else if (loop) banner('Output muted: input and output are both BlackHole, which would feed the board back into itself. Set Output device to your Apollo or speakers.', 'danger');
     else if ($('#banner').dataset.kind === 'danger' && /BlackHole/.test($('#banner').textContent)) banner('');
   }
 
