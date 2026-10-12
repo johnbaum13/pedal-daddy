@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pedal Daddy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Barlow+Condensed:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a gig-bag pedalboard. Control strip on top, six stompboxes on a railed board, patch notes underneath. Single dark stage look. */
+:root{
+  color-scheme: dark;
+  --bg:#111315;
+  --rail:#1a1d21;
+  --rail-line:#24282d;
+  --panel:#171a1d;
+  --line:#2c3137;
+  --fg:#ece6da;
+  --muted:#9b968c;
+  --accent:#f2b33d;
+  --led:#ff4b3a;
+  --ok:#7fd18b;
+  --warn:#ffb347;
+  --danger:#ff6b5a;
+  --font-display:"Rubik Mono One", "Arial Black", Impact, sans-serif;
+  --font-body:"Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:17px;line-height:1.45;padding-inline:16px;padding-block:18px 48px;-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+/* control strip */
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand h1{font-family:var(--font-display);font-weight:400;font-size:24px;letter-spacing:.02em;margin:0;line-height:1}
+.brand small{display:block;color:var(--muted);font-size:14px;letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.power{width:46px;height:46px;border-radius:50%;border:2px solid var(--line);background:#0c0d0f;display:grid;place-items:center;transition:border-color .15s, box-shadow .15s}
+.power svg{width:22px;height:22px;stroke:var(--muted);transition:stroke .15s}
+.power[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,179,61,.18)}
+.power[aria-pressed="true"] svg{stroke:var(--accent)}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl > span{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:6px 12px;font-size:15px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+select{background:#0c0d0f;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:15px;max-width:220px}
+input[type=range]{accent-color:var(--accent);width:120px}
+.meters{display:flex;flex-direction:column;gap:6px;min-width:150px}
+.meter{display:grid;grid-template-columns:30px 1fr;align-items:center;gap:8px;font-size:12px;letter-spacing:.1em;color:var(--muted);font-family:var(--font-mono)}
+.meter .bar{height:8px;border-radius:4px;background:#0a0b0c;overflow:hidden;border:1px solid var(--line)}
+.meter .fill{height:100%;width:0;background:var(--ok);transition:width .05s linear}
+.meter .fill.hot{background:var(--danger)}
+.readout{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.learn-btn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 12px;font-size:15px}
+.learn-btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+.banner{padding:10px 14px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);background:rgba(255,179,71,.07);font-size:16px}
+.banner[data-kind="danger"]{border-color:var(--danger);color:var(--danger);background:rgba(255,107,90,.08)}
+.banner[data-kind="info"]{border-color:var(--line);color:var(--muted);background:transparent}
+
+/* the board */
+.board{position:relative;padding:22px 18px 26px;border-radius:14px;background:var(--rail);
+  background-image:repeating-linear-gradient(180deg, transparent 0 34px, var(--rail-line) 34px 36px);
+  border:1px solid var(--line)}
+.board-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 2px 14px;flex-wrap:wrap}
+.board-head h2{font-family:var(--font-display);font-weight:400;font-size:14px;letter-spacing:.12em;margin:0;color:var(--muted)}
+.chain{font-family:var(--font-mono);font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.chain b{color:var(--fg);font-weight:600}
+.pedals{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:16px}
+
+.pedal{--body:#d9622b;--ink:#1b0f08;--plate:rgba(0,0,0,.18);
+  position:relative;display:flex;flex-direction:column;align-items:stretch;gap:12px;
+  background:var(--body);color:var(--ink);border-radius:12px;padding:12px 12px 14px;
+  box-shadow:0 6px 0 rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.08);
+  transition:transform .12s ease, opacity .12s}
+.pedal.dragging{opacity:.45}
+.pedal.drop-before{box-shadow:-6px 0 0 var(--accent), 0 6px 0 rgba(0,0,0,.45)}
+.pedal.drop-after{box-shadow:6px 0 0 var(--accent), 0 6px 0 rgba(0,0,0,.45)}
+.ped-top{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:12px}
+.nudge{width:26px;height:26px;border-radius:6px;border:0;background:var(--plate);color:var(--ink);display:grid;place-items:center;font-size:15px;line-height:1}
+.nudge:disabled{opacity:.3;cursor:default}
+.slot{opacity:.75;letter-spacing:.08em;cursor:grab;user-select:none}
+.knobs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 6px;justify-items:center}
+.knobs[data-n="3"] .kw:last-child{grid-column:1 / -1}
+.kw{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.knob{--a:0deg;position:relative;width:52px;height:52px;border-radius:50%;touch-action:none;cursor:ns-resize;
+  background:conic-gradient(from -135deg, var(--ink) 0 var(--a), rgba(0,0,0,.18) var(--a) 270deg, transparent 270deg)}
+.knob .cap{position:absolute;inset:6px;border-radius:50%;background:#16171a;box-shadow:inset 0 -3px 0 rgba(255,255,255,.06), 0 2px 0 rgba(0,0,0,.35)}
+.knob .ptr{position:absolute;left:50%;top:4px;width:3px;height:14px;margin-left:-1.5px;border-radius:2px;background:#f4efe4;transform-origin:50% 16px}
+.knob.mapped::after{content:"";position:absolute;right:-2px;top:-2px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--body)}
+.knob.learning{outline:3px dashed var(--ink);outline-offset:3px}
+.kw label{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.kw output{font-family:var(--font-mono);font-size:11px;opacity:.8;font-variant-numeric:tabular-nums}
+.plate{background:var(--plate);border-radius:8px;padding:8px 10px;text-align:center}
+.plate h3{font-family:var(--font-display);font-weight:400;font-size:19px;letter-spacing:.02em;margin:0;line-height:1.05}
+.plate p{margin:3px 0 0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.foot{display:flex;align-items:center;justify-content:center;gap:14px}
+.led{width:12px;height:12px;border-radius:50%;background:#3a1210;border:2px solid rgba(0,0,0,.35);transition:background .1s, box-shadow .1s}
+.pedal.on .led{background:var(--led);box-shadow:0 0 10px 2px rgba(255,75,58,.7)}
+.stomp{width:58px;height:58px;border-radius:50%;border:0;background:#c9c6c0;
+  box-shadow:inset 0 -5px 0 #8d8a84, inset 0 0 0 4px #dedbd5, 0 3px 0 rgba(0,0,0,.4);transition:transform .06s}
+.stomp:active{transform:translateY(2px)}
+.stomp.mapped{box-shadow:inset 0 -5px 0 #8d8a84, inset 0 0 0 4px var(--accent), 0 3px 0 rgba(0,0,0,.4)}
+.stomp.learning{outline:3px dashed var(--ink);outline-offset:4px}
+.tap{font-family:var(--font-mono);font-size:11px;border:0;border-radius:6px;padding:4px 8px;background:var(--plate);color:var(--ink);letter-spacing:.08em}
+.keyhint{font-family:var(--font-mono);font-size:11px;opacity:.6}
+
+/* lower area */
+.lower{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.card h2{font-family:var(--font-display);font-weight:400;font-size:14px;letter-spacing:.12em;color:var(--muted);margin:0 0 12px}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 14px;font-size:16px}
+.chip:hover{border-color:var(--fg)}
+.chip.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.slotbox{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
+.slotbox button{border:0;background:transparent;padding:7px 8px;font-size:15px}
+.slotbox .load{flex:1;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slotbox .load:disabled{color:var(--muted);cursor:default}
+.slotbox .save{border-left:1px solid var(--line);color:var(--muted);font-family:var(--font-mono);font-size:12px}
+.slotbox .save:hover{color:var(--accent)}
+.sub{color:var(--muted);font-size:15px;margin:12px 0 0}
+ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-width:62ch}
+ol.steps li::marker{font-family:var(--font-mono);color:var(--accent)}
+code{font-family:var(--font-mono);font-size:.82em;background:#0c0d0f;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.midi-list{margin:10px 0 0;padding:0;list-style:none;font-family:var(--font-mono);font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.midi-list button{border:0;background:transparent;color:var(--danger);font-size:12px;padding:0 0 0 8px}
+
+@media (max-width: 820px){ .lower{grid-template-columns:1fr} }
+@media (max-width: 480px){
+  .pedals{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .knob{width:46px;height:46px}
+  .plate h3{font-size:15px}
+  .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="strip">
+    <div class="brand">
+      <button class="power" id="power" aria-pressed="false" aria-label="Power on the pedalboard" title="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>
+      </button>
+      <div>
+        <h1>Pedal Daddy</h1>
+        <small id="status">Off · press power to start</small>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <span>Source</span>
+      <div class="seg" role="group" aria-label="Signal source">
+        <button id="srcLive" aria-pressed="true">Live input</button>
+        <button id="srcDemo" aria-pressed="false">Demo riff</button>
+      </div>
+    </div>
+
+    <label class="ctl"><span>Input device</span>
+      <select id="inDev"><option value="">Default input</option></select>
+    </label>
+    <div class="ctl"><span>Output device</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="outDev" aria-label="Output device"><option value="">System default</option></select>
+        <button class="learn-btn" id="rescan" title="Ask Chrome for your audio devices again">Rescan</button>
+      </div>
+    </div>
+
+    <label class="ctl"><span>In gain</span><input type="range" id="inGain" min="0" max="2" step="0.01" value="1"></label>
+    <label class="ctl"><span>Master</span><input type="range" id="master" min="0" max="1.5" step="0.01" value="0.8"></label>
+
+    <div class="meters" aria-hidden="true">
+      <div class="meter">IN<div class="bar"><div class="fill" id="mIn"></div></div></div>
+      <div class="meter">OUT<div class="bar"><div class="fill" id="mOut"></div></div></div>
+      <div class="readout" id="latency">latency — ms</div>
+    </div>
+
+    <button class="learn-btn" id="learn" aria-pressed="false" title="Click a knob or footswitch, then move a control on your MIDI device">MIDI learn</button>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <section class="board" aria-label="Pedalboard">
+    <div class="board-head">
+      <h2>Signal chain</h2>
+      <div class="chain" id="chain"></div>
+    </div>
+    <div class="pedals" id="pedals"></div>
+  </section>
+
+  <div class="lower">
+    <section class="card">
+      <h2>Presets</h2>
+      <div class="presets" id="presets"></div>
+      <div class="slots" id="slots"></div>
+      <p class="sub">Tap a slot name to load it, or <b>Save</b> to store the current board there. Keys <code>1</code>–<code>6</code> stomp the pedals left to right. Drag a pedal by its number to reorder the chain.</p>
+      <h2 style="margin-top:18px">MIDI</h2>
+      <p class="sub" id="midiStatus" style="margin-top:0">Web MIDI not started yet.</p>
+      <ul class="midi-list" id="midiList"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Hook up your synths</h2>
+      <ol class="steps">
+        <li>In macOS <b>System Settings → Sound → Output</b>, pick <code>BlackHole 2ch</code>. Pandemonium, Pipsqueak and anything else playing in the browser now flows into BlackHole.</li>
+        <li>Here, press power and allow audio input. Set <b>Input device</b> to <code>BlackHole 2ch</code>.</li>
+        <li>Set <b>Output device</b> to your Apollo or speakers. This step matters: if the pedalboard also plays into BlackHole, it feeds itself.</li>
+        <li>Open your synth in another tab and play. Guitar works too: set Input device to the Apollo instead.</li>
+      </ol>
+      <p class="sub">Use Chrome. Run this file from GitHub Pages or open it directly from your drive. Echo cancellation and noise suppression are switched off so the browser doesn't scrub your tone.</p>
+    </section>
+  </div>
+</div>
+
+<!-- ==========================================================================
+  PedalKit — reusable pedal engine. No UI, no dependencies.
+  To drop the same pedals into Pandemonium or Pipsqueak, copy this whole
+  <script> block into that page, then:
+
+    const board = PedalKit.createBoard(ctx, ['autowah','fuzz','chorus','tremolo','delay','reverb']);
+    synthOutput.connect(board.input);
+    board.output.connect(ctx.destination);
+    board.pedals.delay.setEnabled(true);
+    board.pedals.delay.set('time', 375);   // values are in real units (ms, Hz, 0..1)
+    board.setOrder(['fuzz','autowah', ...]); // rewire the chain
+
+  Every pedal: { type, input, output, values, set(key, value), setEnabled(bool), enabled }
+  PedalKit.TYPES[type].params lists each knob's key, range, default and unit.
+=========================================================================== -->
+<script>
+const PedalKit = (() => {
+  const ramp = (param, v, ctx, tc = 0.02) => param.setTargetAtTime(v, ctx.currentTime, tc);
+  const shaperCurve = (fn, n = 4096) => {
+    const c = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = fn(x); }
+    return c;
+  };
+  const eqMix = m => [Math.cos(m * Math.PI / 2), Math.sin(m * Math.PI / 2)];
+  const filt = (ctx, type, f, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q != null) b.Q.value = q; return b; };
+  const gain = (ctx, v = 1) => { const g = ctx.createGain(); g.gain.value = v; return g; };
+
+  function makeIR(ctx, seconds) {
+    const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let lp = 0;
+      for (let i = 0; i < len; i++) {
+        const t = i / len;
+        const coef = 0.95 - 0.8 * t;            // tail gets darker as it decays
+        lp += ((Math.random() * 2 - 1) - lp) * coef;
+        const fadeIn = Math.min(1, i / (ctx.sampleRate * 0.004));
+        d[i] = lp * Math.exp(-6.9 * t) * fadeIn;
+      }
+    }
+    return buf;
+  }
+
+  const TYPES = {
+    autowah: {
+      name: 'Auto-Wah', sub: 'Envelope filter', color: '#7b4fa0', ink: '#f3eafb',
+      params: [
+        { key: 'sens',  label: 'Sens',  min: 0,   max: 1,    def: 0.6, unit: '%' },
+        { key: 'range', label: 'Range', min: 120, max: 1500, def: 320, unit: 'Hz', log: true },
+        { key: 'reso',  label: 'Peak',  min: 1,   max: 18,   def: 7,   unit: 'Q' },
+        { key: 'mix',   label: 'Mix',   min: 0,   max: 1,    def: 1,   unit: '%' },
+      ],
+      build(ctx, inp, out) {
+        const f = filt(ctx, 'lowpass', 320, 7);
+        const rect = ctx.createWaveShaper(); rect.curve = shaperCurve(x => Math.abs(x));
+        const env = filt(ctx, 'lowpass', 9, 0.5);
+        const amt = gain(ctx, 0);
+        const wah = gain(ctx, 1), dry = gain(ctx, 0);
+        inp.connect(rect); rect.connect(env); env.connect(amt); amt.connect(f.frequency);
+        inp.connect(f); f.connect(wah); wah.connect(out);
+        inp.connect(dry); dry.connect(out);
+        let mix = 1, q = 7;
+        const level = () => { const [d, w] = eqMix(mix); ramp(dry.gain, d, ctx); ramp(wah.gain, w / (1 + q * 0.12), ctx); };
+        return { set(k, v) {
+          if (k === 'sens') ramp(amt.gain, v * 14000, ctx);
+          if (k === 'range') ramp(f.frequency, v, ctx);
+          if (k === 'reso') { q = v; ramp(f.Q, v, ctx); level(); }
+          if (k === 'mix') { mix = v; level(); }
+        } };
+      }
+    },
+
+    fuzz: {
+      name: 'Fuzz', sub: 'Big muff-ish', color: '#d9622b', ink: '#1d0e05',
+      params: [
+        { key: 'fuzz',  label: 'Fuzz',  min: 1,   max: 120,  def: 28,   unit: 'x', log: true },
+        { key: 'tone',  label: 'Tone',  min: 600, max: 9000, def: 2800, unit: 'Hz', log: true },
+        { key: 'level', label: 'Level', min: 0,   max: 1.5,  def: 0.7,  unit: '%' },
+      ],
+      build(ctx, inp, out) {
+        const hp = filt(ctx, 'highpass', 90, 0.7);
+        const pre = gain(ctx, 28);
+        const sh = ctx.createWaveShaper(); sh.oversample = '4x';
+        sh.curve = shaperCurve(x => x >= 0 ? 1 - Math.exp(-4 * x) : -(1 - Math.exp(3 * x)) * 0.85);
+        const dc = filt(ctx, 'highpass', 30, 0.7);
+        const scoop = filt(ctx, 'peaking', 900, 0.8); scoop.gain.value = -5;
+        const tone = filt(ctx, 'lowpass', 2800, 0.5);
+        const lvl = gain(ctx, 0.35);
+        inp.connect(hp); hp.connect(pre); pre.connect(sh); sh.connect(dc); dc.connect(scoop); scoop.connect(tone); tone.connect(lvl); lvl.connect(out);
+        return { set(k, v) {
+          if (k === 'fuzz') ramp(pre.gain, v, ctx);
+          if (k === 'tone') ramp(tone.frequency, v, ctx);
+          if (k === 'level') ramp(lvl.gain, v * 0.5, ctx);
+        } };
+      }
+    },
+
+    chorus: {
+      name: 'Chorus', sub: 'Stereo ensemble', color: '#3fa6a0', ink: '#06201e',
+      params: [
+        { key: 'rate',  label: 'Rate',  min: 0.05, max: 6, def: 0.8, unit: 'Hz', log: true },
+        { key: 'depth', label: 'Depth', min: 0,    max: 1, def: 0.5, unit: '%' },
+        { key: 'mix',   label: 'Mix',   min: 0,    max: 1, def: 0.5, unit: '%' },
+      ],
+      build(ctx, inp, out) {
+        const d1 = ctx.createDelay(0.1), d2 = ctx.createDelay(0.1);
+        d1.delayTime.value = 0.014; d2.delayTime.value = 0.019;
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.8;
+        const g1 = gain(ctx, 0.003), g2 = gain(ctx, -0.003);
+        lfo.connect(g1); g1.connect(d1.delayTime); lfo.connect(g2); g2.connect(d2.delayTime); lfo.start();
+        const p1 = ctx.createStereoPanner(), p2 = ctx.createStereoPanner(); p1.pan.value = -0.7; p2.pan.value = 0.7;
+        const dry = gain(ctx, 0.7), wet = gain(ctx, 0.7);
+        inp.connect(dry); dry.connect(out);
+        inp.connect(d1); inp.connect(d2); d1.connect(p1); d2.connect(p2); p1.connect(wet); p2.connect(wet); wet.connect(out);
+        return { set(k, v) {
+          if (k === 'rate') ramp(lfo.frequency, v, ctx);
+          if (k === 'depth') { ramp(g1.gain, v * 0.006, ctx); ramp(g2.gain, -v * 0.006, ctx); }
+          if (k === 'mix') { const [a, b] = eqMix(v); ramp(dry.gain, a, ctx); ramp(wet.gain, b, ctx); }
+        } };
+      }
+    },
+
+    tremolo: {
+      name: 'Tremolo', sub: 'Opto throb', color: '#e3cf8c', ink: '#2a2208',
+      params: [
+        { key: 'rate',  label: 'Rate',  min: 0.5, max: 15, def: 5,   unit: 'Hz', log: true },
+        { key: 'depth', label: 'Depth', min: 0,   max: 1,  def: 0.6, unit: '%' },
+        { key: 'shape', label: 'Shape', min: 0,   max: 1,  def: 0.2, unit: 'sq' },
+      ],
+      build(ctx, inp, out) {
+        const amp = gain(ctx, 0.7);
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 5;
+        const sh = ctx.createWaveShaper();
+        const dep = gain(ctx, 0.3);
+        lfo.connect(sh); sh.connect(dep); dep.connect(amp.gain); lfo.start();
+        inp.connect(amp); amp.connect(out);
+        const setShape = s => { const k = 1 + s * 30; const n = Math.tanh(k); sh.curve = shaperCurve(x => Math.tanh(k * x) / n, 1024); };
+        setShape(0.2);
+        return { set(k, v) {
+          if (k === 'rate') ramp(lfo.frequency, v, ctx);
+          if (k === 'depth') { ramp(amp.gain, 1 - v / 2, ctx); ramp(dep.gain, v / 2, ctx); }
+          if (k === 'shape') setShape(v);
+        } };
+      }
+    },
+
+    delay: {
+      name: 'Delay', sub: 'Tape echo', color: '#8c9a6b', ink: '#141a08', trails: true, tap: true,
+      params: [
+        { key: 'time',    label: 'Time',    min: 60,  max: 1500, def: 375,  unit: 'ms', log: true },
+        { key: 'repeats', label: 'Repeats', min: 0,   max: 0.92, def: 0.4,  unit: '%' },
+        { key: 'tone',    label: 'Tone',    min: 700, max: 9000, def: 3000, unit: 'Hz', log: true },
+        { key: 'level',   label: 'Level',   min: 0,   max: 1,    def: 0.5,  unit: '%' },
+      ],
+      build(ctx, inp, out) {
+        const d = ctx.createDelay(2.5); d.delayTime.value = 0.375;
+        const tone = filt(ctx, 'lowpass', 3000, 0.4);
+        const hp = filt(ctx, 'highpass', 120, 0.5);
+        const sat = ctx.createWaveShaper(); sat.curve = shaperCurve(x => Math.tanh(x * 1.4) / Math.tanh(1.4), 1024);
+        const fb = gain(ctx, 0.4), echo = gain(ctx, 0.5), dry = gain(ctx, 1);
+        const wow = ctx.createOscillator(); wow.frequency.value = 0.45;
+        const wowAmt = gain(ctx, 0.0009); wow.connect(wowAmt); wowAmt.connect(d.delayTime); wow.start();
+        inp.connect(dry); dry.connect(out);
+        inp.connect(d); d.connect(tone); tone.connect(hp); hp.connect(sat); sat.connect(fb); fb.connect(d);
+        tone.connect(echo); echo.connect(out);
+        return { set(k, v) {
+          if (k === 'time') d.delayTime.setTargetAtTime(v / 1000, ctx.currentTime, 0.06);
+          if (k === 'repeats') ramp(fb.gain, v, ctx);
+          if (k === 'tone') ramp(tone.frequency, v, ctx);
+          if (k === 'level') ramp(echo.gain, v, ctx);
+        } };
+      }
+    },
+
+    reverb: {
+      name: 'Reverb', sub: 'Plate to hall', color: '#2f4f8f', ink: '#e8eefb', trails: true,
+      params: [
+        { key: 'size',  label: 'Decay', min: 0.6, max: 8,     def: 2.4,  unit: 's', log: true },
+        { key: 'tone',  label: 'Tone',  min: 1200, max: 12000, def: 5500, unit: 'Hz', log: true },
+        { key: 'mix',   label: 'Mix',   min: 0,   max: 1,     def: 0.35, unit: '%' },
+      ],
+      build(ctx, inp, out) {
+        const pre = ctx.createDelay(0.2); pre.delayTime.value = 0.022;
+        const conv = ctx.createConvolver(); conv.normalize = true; conv.buffer = makeIR(ctx, 2.4);
+        const hp = filt(ctx, 'highpass', 160, 0.5);
+        const tone = filt(ctx, 'lowpass', 5500, 0.5);
+        const wet = gain(ctx, 0.35 * 1.6), dry = gain(ctx, 1);
+        inp.connect(dry); dry.connect(out);
+        inp.connect(pre); pre.connect(conv); conv.connect(hp); hp.connect(tone); tone.connect(wet); wet.connect(out);
+        let timer = null, lastSize = 2.4;
+        return { set(k, v) {
+          if (k === 'size') {
+            if (Math.abs(v - lastSize) < 0.01) return;
+            lastSize = v; clearTimeout(timer);
+            timer = setTimeout(() => { conv.buffer = makeIR(ctx, v); }, 140);
+          }
+          if (k === 'tone') ramp(tone.frequency, v, ctx);
+          if (k === 'mix') { ramp(wet.gain, v * 1.6, ctx); ramp(dry.gain, 1 - v * 0.35, ctx); }
+        } };
+      }
+    },
+  };
+
+  function createPedal(ctx, type) {
+    const T = TYPES[type];
+    const input = gain(ctx), output = gain(ctx);
+    const dry = gain(ctx, 1), wet = gain(ctx, T.trails ? 1 : 0), feed = gain(ctx, T.trails ? 0 : 1);
+    input.connect(dry); dry.connect(output);
+    input.connect(feed);
+    const fxIn = gain(ctx);
+    feed.connect(fxIn);
+    const fx = T.build(ctx, fxIn, wet);
+    wet.connect(output);
+    const values = {};
+    T.params.forEach(p => { values[p.key] = p.def; });
+    let enabled = false;
+    const pedal = {
+      type, input, output, values,
+      get enabled() { return enabled; },
+      set(k, v) { values[k] = v; fx.set(k, v); },
+      setEnabled(on) {
+        enabled = !!on;
+        const tc = 0.012;
+        ramp(dry.gain, on ? 0 : 1, ctx, tc);
+        if (T.trails) ramp(feed.gain, on ? 1 : 0, ctx, tc);   // tails ring out after bypass
+        else ramp(wet.gain, on ? 1 : 0, ctx, tc);
+      },
+    };
+    T.params.forEach(p => fx.set(p.key, p.def));
+    return pedal;
+  }
+
+  function createBoard(ctx, order) {
+    const input = gain(ctx), output = gain(ctx);
+    const pedals = {};
+    order.forEach(t => { pedals[t] = createPedal(ctx, t); });
+    let ord = [...order];
+    function wire() {
+      input.disconnect();
+      Object.values(pedals).forEach(p => p.output.disconnect());
+      let node = input;
+      ord.forEach(t => { node.connect(pedals[t].input); node = pedals[t].output; });
+      node.connect(output);
+    }
+    wire();
+    return {
+      input, output, pedals,
+      get order() { return [...ord]; },
+      setOrder(o) { ord = [...o]; wire(); },
+    };
+  }
+
+  return { TYPES, createPedal, createBoard };
+})();
+</script>
+
+<!-- ==========================================================================
+  Pedal Daddy UI
+=========================================================================== -->
+<script>
+(() => {
+  const T = PedalKit.TYPES;
+  const STORE = 'pedalDaddy.v1';
+  const DEFAULT_ORDER = ['autowah', 'fuzz', 'chorus', 'tremolo', 'delay', 'reverb'];
+  const $ = s => document.querySelector(s);
+
+  // ---------- state ----------
+  const blankPedals = () => Object.fromEntries(DEFAULT_ORDER.map(t => [t, {
+    on: false, values: Object.fromEntries(T[t].params.map(p => [p.key, p.def]))
+  }]));
+  let state = {
+    order: [...DEFAULT_ORDER], pedals: blankPedals(), source: 'live',
+    inDev: '', outDev: '', inGain: 1, master: 0.8, midi: {}, slots: [null, null, null, null], preset: null
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved) {
+      state = { ...state, ...saved };
+      const fresh = blankPedals();
+      for (const t of DEFAULT_ORDER) state.pedals[t] = { ...fresh[t], ...(state.pedals[t] || {}), values: { ...fresh[t].values, ...((state.pedals[t] || {}).values || {}) } };
+      if (!Array.isArray(state.order) || state.order.length !== DEFAULT_ORDER.length || !DEFAULT_ORDER.every(t => state.order.includes(t))) state.order = [...DEFAULT_ORDER];
+    }
+  } catch (e) {}
+  let saveTimer = null;
+  const persist = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }, 250); };
+
+  // ---------- presets ----------
+  const P = (order, cfg) => ({ order, cfg });
+  const PRESETS = {
+    'All off': P(DEFAULT_ORDER, {}),
+    'Funk stab': P(DEFAULT_ORDER, {
+      autowah: { on: true, sens: 0.72, range: 280, reso: 9, mix: 1 },
+      delay: { on: true, time: 110, repeats: 0.12, tone: 4200, level: 0.3 },
+      reverb: { on: true, size: 1.1, tone: 7000, mix: 0.18 } }),
+    'Dub echo': P(DEFAULT_ORDER, {
+      delay: { on: true, time: 400, repeats: 0.72, tone: 1700, level: 0.7 },
+      reverb: { on: true, size: 3.2, tone: 4200, mix: 0.3 } }),
+    'Shoegaze wash': P(DEFAULT_ORDER, {
+      fuzz: { on: true, fuzz: 60, tone: 2200, level: 0.6 },
+      chorus: { on: true, rate: 0.35, depth: 0.85, mix: 0.55 },
+      delay: { on: true, time: 460, repeats: 0.55, tone: 2500, level: 0.45 },
+      reverb: { on: true, size: 7, tone: 4800, mix: 0.62 } }),
+    'Surf trem': P(DEFAULT_ORDER, {
+      tremolo: { on: true, rate: 6.2, depth: 0.7, shape: 0.35 },
+      reverb: { on: true, size: 2.2, tone: 6500, mix: 0.5 } }),
+  };
+  function presetToState(pr) {
+    const pedals = blankPedals();
+    for (const [t, c] of Object.entries(pr.cfg)) {
+      const { on, ...vals } = c;
+      pedals[t].on = !!on; Object.assign(pedals[t].values, vals);
+    }
+    return { order: [...pr.order], pedals };
+  }
+
+  // ---------- audio ----------
+  let ctx = null, board = null, inNode = null, inGainNode, master, anIn, anOut, demoBus, stream = null;
+  let demoTimer = null, outMuted = false;
+
+  const banner = (msg, kind = 'warn') => { const b = $('#banner'); if (!msg) { b.hidden = true; return; } b.hidden = false; b.dataset.kind = kind; b.textContent = msg; };
+  const setStatus = t => { $('#status').textContent = t; };
+
+  async function powerOn() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    board = PedalKit.createBoard(ctx, state.order);
+    for (const t of DEFAULT_ORDER) {
+      const p = board.pedals[t];
+      for (const [k, v] of Object.entries(state.pedals[t].values)) p.set(k, v);
+      p.setEnabled(state.pedals[t].on);
+    }
+    inGainNode = ctx.createGain(); inGainNode.gain.value = state.inGain;
+    master = ctx.createGain(); master.gain.value = state.master;
+    anIn = ctx.createAnalyser(); anIn.fftSize = 1024;
+    anOut = ctx.createAnalyser(); anOut.fftSize = 1024;
+    demoBus = ctx.createGain();
+    inGainNode.connect(anIn); inGainNode.connect(board.input);
+    board.output.connect(master); master.connect(anOut); anOut.connect(ctx.destination);
+    $('#power').setAttribute('aria-pressed', 'true');
+    $('#power').setAttribute('aria-label', 'Power off the pedalboard');
+    await applySource();
+    await refreshDevices();
+    if (state.outDev) await applyOutput(state.outDev);
+    showLatency();
+    meterLoop();
+    startMidi();
+  }
+
+  async function powerOff() {
+    stopDemo();
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    if (ctx) await ctx.close();
+    ctx = null; board = null; inNode = null;
+    $('#power').setAttribute('aria-pressed', 'false');
+    $('#power').setAttribute('aria-label', 'Power on the pedalboard');
+    setStatus('Off · press power to start');
+    $('#mIn').style.width = '0'; $('#mOut').style.width = '0';
+    $('#latency').textContent = 'latency — ms';
+  }
+
+  async function openInput() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } };
+    if (state.inDev) audio.deviceId = { exact: state.inDev };
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio });
+    } catch (e) {
+      if (state.inDev) { state.inDev = ''; persist(); return openInput(); }
+      banner('Audio input was blocked. Allow microphone access for this page in Chrome (the icon in the address bar), then press power again. The demo riff works without it.', 'danger');
+      return null;
+    }
+    return ctx.createMediaStreamSource(stream);
+  }
+
+  async function applySource() {
+    if (!ctx) return;
+    if (inNode) { try { inNode.disconnect(); } catch (e) {} inNode = null; }
+    try { demoBus.disconnect(); } catch (e) {}
+    stopDemo();
+    if (state.source === 'demo') {
+      demoBus.connect(inGainNode); startDemo();
+      setStatus('On · demo riff');
+    } else {
+      inNode = await openInput();
+      if (inNode) { inNode.connect(inGainNode); setStatus('On · live input'); await refreshDevices(); }
+      else setStatus('On · no input');
+    }
+    checkLoop();
+  }
+
+  async function refreshDevices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const fill = (sel, kind, first, cur) => {
+      sel.innerHTML = '';
+      const o = document.createElement('option'); o.value = ''; o.textContent = first; sel.appendChild(o);
+      devs.filter(d => d.kind === kind && d.deviceId && d.deviceId !== 'default').forEach(d => {
+        const op = document.createElement('option'); op.value = d.deviceId; op.textContent = d.label || kind; sel.appendChild(op);
+      });
+      sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
+    };
+    fill($('#inDev'), 'audioinput', 'Default input', state.inDev);
+    const sinkOK = typeof (window.AudioContext && AudioContext.prototype.setSinkId) === 'function';
+    fill($('#outDev'), 'audiooutput', 'System default', state.outDev);
+    $('#outDev').disabled = !sinkOK;
+    const outs = $('#outDev').options.length - 1;
+    if (!sinkOK) banner('This browser can\'t choose an output device, so the board plays to the system output. If that is BlackHole you will hear nothing and risk a feedback loop. Use Chrome.', 'warn');
+    else if (!outs) banner('Chrome hides your speakers and interfaces until this page has audio-input permission. Press Rescan and choose Allow.', 'info');
+    else if ($('#banner').dataset.kind === 'info' && /Rescan/.test($('#banner').textContent)) banner('');
+    checkLoop();
+  }
+
+  // Unlock device names: briefly ask for input permission, then let go of it.
+  async function rescan() {
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      probe.getTracks().forEach(t => t.stop());
+    } catch (e) {
+      banner('Chrome blocked audio access, so it won\'t list your devices. Click the icon at the left of the address bar, allow the microphone, then press Rescan.', 'danger');
+      return;
+    }
+    await refreshDevices();
+    if (ctx && state.outDev) await applyOutput(state.outDev);
+  }
+
+  async function applyOutput(id) {
+    if (!ctx || typeof ctx.setSinkId !== 'function') return;
+    try { await ctx.setSinkId(id || ''); } catch (e) { banner('Couldn\'t switch to that output device. Pick another one.', 'danger'); }
+    showLatency(); checkLoop();
+  }
+
+  const labelOf = sel => (sel.options[sel.selectedIndex] || {}).textContent || '';
+  function checkLoop() {
+    if (!ctx) return;
+    const inL = state.source === 'live' ? labelOf($('#inDev')) : '';
+    const outL = labelOf($('#outDev'));
+    const loop = /blackhole/i.test(inL) && /blackhole/i.test(outL);
+    outMuted = loop;
+    master.gain.setTargetAtTime(loop ? 0 : state.master, ctx.currentTime, 0.02);
+    if (loop) banner('Output muted: input and output are both BlackHole, which would feed the board back into itself. Set Output device to your Apollo or speakers.', 'danger');
+    else if ($('#banner').dataset.kind === 'danger' && /BlackHole/.test($('#banner').textContent)) banner('');
+  }
+
+  function showLatency() {
+    if (!ctx) return;
+    const ms = ((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000;
+    $('#latency').textContent = ms ? `latency ≈ ${ms.toFixed(0)} ms` : 'latency — ms';
+  }
+
+  // demo riff: E dorian sixteenths at 98 bpm
+  const RIFF = [40, null, 52, 55, null, 57, null, 55, 52, null, 50, null, 47, 50, 52, null];
+  const STAB_STEPS = { 4: [64, 67, 71], 12: [62, 66, 69] };
+  function startDemo() {
+    const step = 60 / 98 / 4;
+    let next = ctx.currentTime + 0.08, i = 0;
+    const voice = (note, t, len, vel, bright) => {
+      const f = 440 * Math.pow(2, (note - 69) / 12);
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+      o1.type = 'sawtooth'; o2.type = 'square'; o1.frequency.value = f; o2.frequency.value = f; o2.detune.value = 7;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4;
+      lp.frequency.setValueAtTime(bright, t); lp.frequency.exponentialRampToValueAtTime(380, t + len);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0008, t + len);
+      o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(demoBus);
+      o1.start(t); o2.start(t); o1.stop(t + len + 0.05); o2.stop(t + len + 0.05);
+    };
+    const tick = () => {
+      while (next < ctx.currentTime + 0.12) {
+        const n = RIFF[i % 16];
+        if (n != null) voice(n, next, 0.2, 0.22, 2600);
+        const chord = STAB_STEPS[i % 16];
+        if (chord && (Math.floor(i / 16) % 2 === 1)) chord.forEach(c => voice(c, next, 0.14, 0.08, 4200));
+        next += step; i++;
+      }
+    };
+    tick(); demoTimer = setInterval(tick, 25);
+  }
+  function stopDemo() { clearInterval(demoTimer); demoTimer = null; }
+
+  // meters
+  const bufIn = new Float32Array(1024), bufOut = new Float32Array(1024);
+  let pkIn = 0, pkOut = 0;
+  function meterLoop() {
+    if (!ctx) return;
+    const peak = (an, buf) => { an.getFloatTimeDomainData(buf); let m = 0; for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > m) m = a; } return m; };
+    pkIn = Math.max(peak(anIn, bufIn), pkIn * 0.9);
+    pkOut = Math.max(peak(anOut, bufOut), pkOut * 0.9);
+    const w = v => Math.min(100, Math.max(0, (20 * Math.log10(v + 1e-6) + 48) / 48 * 100));
+    const mi = $('#mIn'), mo = $('#mOut');
+    mi.style.width = w(pkIn) + '%'; mo.style.width = w(pkOut) + '%';
+    mi.classList.toggle('hot', pkIn > 0.95); mo.classList.toggle('hot', pkOut > 0.95);
+    requestAnimationFrame(meterLoop);
+  }
+
+  // ---------- UI: pedals ----------
+  const toNorm = (p, v) => p.log ? Math.log(v / p.min) / Math.log(p.max / p.min) : (v - p.min) / (p.max - p.min);
+  const fromNorm = (p, n) => { n = Math.min(1, Math.max(0, n)); return p.log ? p.min * Math.pow(p.max / p.min, n) : p.min + n * (p.max - p.min); };
+  const fmt = (p, v) => {
+    if (p.unit === '%' || p.unit === 'sq') return Math.round(toNorm(p, v) * 100) + '%';
+    if (p.unit === 'Hz') return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : (v < 10 ? v.toFixed(2) : Math.round(v)) + ' Hz';
+    if (p.unit === 'ms') return Math.round(v) + ' ms';
+    if (p.unit === 's') return v.toFixed(1) + ' s';
+    if (p.unit === 'x') return Math.round(v) + 'x';
+    if (p.unit === 'Q') return v.toFixed(1);
+    return String(v);
+  };
+
+  let learnMode = false, learnTarget = null;
+  const pedalsEl = $('#pedals');
+
+  function render() {
+    pedalsEl.innerHTML = '';
+    state.order.forEach((t, idx) => pedalsEl.appendChild(pedalCard(t, idx)));
+    $('#chain').innerHTML = ['In', ...state.order.map(t => state.pedals[t].on ? `<b>${T[t].name}</b>` : T[t].name), 'Out'].join(' → ');
+    renderPresets(); renderMidiList();
+  }
+
+  function pedalCard(t, idx) {
+    const def = T[t], ps = state.pedals[t];
+    const el = document.createElement('article');
+    el.className = 'pedal' + (ps.on ? ' on' : '');
+    el.style.setProperty('--body', def.color); el.style.setProperty('--ink', def.ink);
+    el.dataset.type = t;
+    el.innerHTML = `
+      <div class="ped-top">
+        <button class="nudge" data-dir="-1" aria-label="Move ${def.name} earlier" ${idx === 0 ? 'disabled' : ''}>‹</button>
+        <span class="slot" draggable="true" title="Drag to reorder">${String(idx + 1).padStart(2, '0')}</span>
+        <button class="nudge" data-dir="1" aria-label="Move ${def.name} later" ${idx === state.order.length - 1 ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="knobs" data-n="${def.params.length}"></div>
+      <div class="plate"><h3>${def.name}</h3><p>${def.sub}</p></div>
+      <div class="foot">
+        <span class="led" aria-hidden="true"></span>
+        <button class="stomp" aria-pressed="${ps.on}" aria-label="${def.name} footswitch"></button>
+        ${def.tap ? '<button class="tap" aria-label="Tap tempo">TAP</button>' : `<span class="keyhint">key ${idx + 1}</span>`}
+      </div>`;
+    const knobs = el.querySelector('.knobs');
+    def.params.forEach(p => knobs.appendChild(knob(t, p)));
+
+    const stomp = el.querySelector('.stomp');
+    if (state.midi && Object.values(state.midi).some(m => m.kind === 'switch' && m.type === t)) stomp.classList.add('mapped');
+    if (learnTarget && learnTarget.kind === 'switch' && learnTarget.type === t) stomp.classList.add('learning');
+    stomp.addEventListener('click', () => {
+      if (learnMode) { learnTarget = { kind: 'switch', type: t }; render(); return; }
+      toggle(t);
+    });
+    el.querySelectorAll('.nudge').forEach(b => b.addEventListener('click', () => move(t, +b.dataset.dir)));
+    const tap = el.querySelector('.tap');
+    if (tap) tap.addEventListener('click', () => tapTempo(t));
+
+    const handle = el.querySelector('.slot');
+    handle.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', t); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+    handle.addEventListener('dragend', () => { el.classList.remove('dragging'); clearDrop(); });
+    el.addEventListener('dragover', e => {
+      e.preventDefault(); clearDrop();
+      const r = el.getBoundingClientRect();
+      el.classList.add(e.clientX < r.left + r.width / 2 ? 'drop-before' : 'drop-after');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after'));
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      const src = e.dataTransfer.getData('text/plain');
+      const after = el.classList.contains('drop-after');
+      clearDrop();
+      if (!src || src === t || !T[src]) return;
+      const o = state.order.filter(x => x !== src);
+      o.splice(o.indexOf(t) + (after ? 1 : 0), 0, src);
+      setOrder(o);
+    });
+    return el;
+  }
+  const clearDrop = () => pedalsEl.querySelectorAll('.drop-before,.drop-after').forEach(n => n.classList.remove('drop-before', 'drop-after'));
+
+  function knob(t, p) {
+    const wrap = document.createElement('div'); wrap.className = 'kw';
+    const id = `k-${t}-${p.key}`;
+    wrap.innerHTML = `<div class="knob" id="${id}" role="slider" tabindex="0" aria-label="${T[t].name} ${p.label}"><div class="cap"><i class="ptr"></i></div></div><label for="${id}">${p.label}</label><output></output>`;
+    const k = wrap.querySelector('.knob'), out = wrap.querySelector('output'), ptr = wrap.querySelector('.ptr');
+    const paint = () => {
+      const v = state.pedals[t].values[p.key], n = toNorm(p, v);
+      k.style.setProperty('--a', (n * 270) + 'deg');
+      ptr.style.transform = `rotate(${-135 + n * 270}deg)`;
+      out.textContent = fmt(p, v);
+      k.setAttribute('aria-valuenow', Math.round(n * 100)); k.setAttribute('aria-valuetext', fmt(p, v));
+    };
+    k._paint = paint; paint();
+    if (Object.values(state.midi || {}).some(m => m.kind === 'knob' && m.type === t && m.key === p.key)) k.classList.add('mapped');
+    if (learnTarget && learnTarget.kind === 'knob' && learnTarget.type === t && learnTarget.key === p.key) k.classList.add('learning');
+
+    const setN = n => { setParam(t, p.key, fromNorm(p, n)); paint(); };
+    let startY = 0, startN = 0, dragging = false;
+    k.addEventListener('pointerdown', e => {
+      if (learnMode) { learnTarget = { kind: 'knob', type: t, key: p.key }; render(); return; }
+      dragging = true; startY = e.clientY; startN = toNorm(p, state.pedals[t].values[p.key]);
+      k.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    k.addEventListener('pointermove', e => { if (!dragging) return; const s = e.shiftKey ? 0.0012 : 0.005; setN(startN + (startY - e.clientY) * s); });
+    const end = () => { dragging = false; };
+    k.addEventListener('pointerup', end); k.addEventListener('pointercancel', end);
+    k.addEventListener('wheel', e => { e.preventDefault(); setN(toNorm(p, state.pedals[t].values[p.key]) - Math.sign(e.deltaY) * 0.02); }, { passive: false });
+    k.addEventListener('dblclick', () => setN(toNorm(p, p.def)));
+    k.addEventListener('keydown', e => {
+      const n = toNorm(p, state.pedals[t].values[p.key]), s = e.shiftKey ? 0.01 : 0.04;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { setN(n + s); e.preventDefault(); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { setN(n - s); e.preventDefault(); }
+    });
+    return wrap;
+  }
+
+  function setParam(t, key, v) {
+    state.pedals[t].values[key] = v;
+    if (board) board.pedals[t].set(key, v);
+    state.preset = null; persist();
+  }
+  function toggle(t, force) {
+    const on = force == null ? !state.pedals[t].on : force;
+    state.pedals[t].on = on;
+    if (board) board.pedals[t].setEnabled(on);
+    const el = pedalsEl.querySelector(`[data-type="${t}"]`);
+    if (el) { el.classList.toggle('on', on); el.querySelector('.stomp').setAttribute('aria-pressed', on); }
+    $('#chain').innerHTML = ['In', ...state.order.map(x => state.pedals[x].on ? `<b>${T[x].name}</b>` : T[x].name), 'Out'].join(' → ');
+    state.preset = null; renderPresets(); persist();
+  }
+  function setOrder(o) { state.order = o; if (board) board.setOrder(o); state.preset = null; persist(); render(); }
+  function move(t, dir) {
+    const o = [...state.order], i = o.indexOf(t), j = i + dir;
+    if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]]; setOrder(o);
+  }
+  let taps = [];
+  function tapTempo(t) {
+    const now = performance.now();
+    taps = taps.filter(x => now - x < 2500); taps.push(now);
+    if (taps.length >= 2) {
+      const iv = []; for (let i = 1; i < taps.length; i++) iv.push(taps[i] - taps[i - 1]);
+      const ms = iv.reduce((a, b) => a + b, 0) / iv.length;
+      const p = T[t].params.find(x => x.key === 'time');
+      setParam(t, 'time', Math.min(p.max, Math.max(p.min, ms)));
+      const k = document.getElementById(`k-${t}-time`); if (k && k._paint) k._paint();
+    }
+  }
+
+  function applyState(s) {
+    state.order = [...s.order];
+    for (const t of DEFAULT_ORDER) state.pedals[t] = JSON.parse(JSON.stringify(s.pedals[t]));
+    if (board) {
+      board.setOrder(state.order);
+      for (const t of DEFAULT_ORDER) {
+        for (const [k, v] of Object.entries(state.pedals[t].values)) board.pedals[t].set(k, v);
+        board.pedals[t].setEnabled(state.pedals[t].on);
+      }
+    }
+    persist(); render();
+  }
+
+  // ---------- presets UI ----------
+  function renderPresets() {
+    const box = $('#presets'); box.innerHTML = '';
+    Object.keys(PRESETS).forEach(name => {
+      const b = document.createElement('button'); b.className = 'chip' + (state.preset === name ? ' active' : ''); b.textContent = name;
+      b.addEventListener('click', () => { applyState(presetToState(PRESETS[name])); state.preset = name; persist(); renderPresets(); });
+      box.appendChild(b);
+    });
+    const slots = $('#slots'); slots.innerHTML = '';
+    ['A', 'B', 'C', 'D'].forEach((L, i) => {
+      const s = state.slots[i];
+      const d = document.createElement('div'); d.className = 'slotbox';
+      d.innerHTML = `<button class="load" ${s ? '' : 'disabled'}>${L} · ${s ? s.label : 'empty'}</button><button class="save" aria-label="Save current board to slot ${L}">Save</button>`;
+      d.querySelector('.load').addEventListener('click', () => { if (s) { applyState(s); state.preset = null; persist(); renderPresets(); } });
+      d.querySelector('.save').addEventListener('click', () => {
+        const on = state.order.filter(t => state.pedals[t].on).map(t => T[t].name);
+        state.slots[i] = { order: [...state.order], pedals: JSON.parse(JSON.stringify(state.pedals)), label: on.length ? on.join(' + ') : 'Dry' };
+        persist(); renderPresets();
+      });
+      slots.appendChild(d);
+    });
+  }
+
+  // ---------- MIDI ----------
+  let midiStarted = false; const lastCC = {};
+  async function startMidi() {
+    if (midiStarted) return; midiStarted = true;
+    if (!navigator.requestMIDIAccess) { $('#midiStatus').textContent = 'Web MIDI isn\'t available in this browser. Use Chrome to map footswitches and knobs.'; return; }
+    try {
+      const acc = await navigator.requestMIDIAccess();
+      const hook = () => {
+        const names = [];
+        acc.inputs.forEach(inp => { inp.onmidimessage = onMidi; names.push(inp.name); });
+        $('#midiStatus').textContent = names.length ? `Listening to ${names.join(', ')}. Turn on MIDI learn, click a knob or footswitch, then move a pad, key or knob.` : 'No MIDI devices found. Plug one in and it will appear here.';
+      };
+      hook(); acc.onstatechange = hook;
+    } catch (e) { $('#midiStatus').textContent = 'MIDI access was blocked for this page.'; }
+  }
+  function onMidi(e) {
+    const [st, d1, d2] = e.data; const type = st & 0xf0, ch = (st & 0x0f) + 1;
+    let id = null, val = 0, isNoteOn = false;
+    if (type === 0xb0) { id = `CC ${d1} · ch ${ch}`; val = d2; }
+    else if (type === 0x90 && d2 > 0) { id = `Note ${d1} · ch ${ch}`; isNoteOn = true; }
+    else return;
+    if (learnMode && learnTarget) {
+      if (learnTarget.kind === 'knob' && type !== 0xb0) return;
+      for (const [k, m] of Object.entries(state.midi)) if (JSON.stringify(m) === JSON.stringify(learnTarget)) delete state.midi[k];
+      state.midi[id] = { ...learnTarget }; learnTarget = null; persist(); render(); return;
+    }
+    const m = state.midi[id]; if (!m) return;
+    if (m.kind === 'switch') {
+      if (isNoteOn) toggle(m.type);
+      else { const prev = lastCC[id] || 0; if (val >= 64 && prev < 64) toggle(m.type); lastCC[id] = val; }
+    } else if (m.kind === 'knob' && type === 0xb0) {
+      const p = T[m.type].params.find(x => x.key === m.key);
+      setParam(m.type, m.key, fromNorm(p, val / 127));
+      const k = document.getElementById(`k-${m.type}-${m.key}`); if (k && k._paint) k._paint();
+    }
+  }
+  function renderMidiList() {
+    const ul = $('#midiList'); ul.innerHTML = '';
+    Object.entries(state.midi || {}).forEach(([id, m]) => {
+      const li = document.createElement('li');
+      const what = m.kind === 'switch' ? `${T[m.type].name} footswitch` : `${T[m.type].name} ${T[m.type].params.find(p => p.key === m.key).label}`;
+      li.textContent = `${id} → ${what}`;
+      const x = document.createElement('button'); x.textContent = 'remove'; x.setAttribute('aria-label', `Remove mapping ${id}`);
+      x.addEventListener('click', () => { delete state.midi[id]; persist(); render(); });
+      li.appendChild(x); ul.appendChild(li);
+    });
+  }
+
+  // ---------- controls ----------
+  $('#power').addEventListener('click', async () => { banner(''); if (ctx) await powerOff(); else await powerOn(); });
+  const setSource = s => {
+    state.source = s; persist();
+    $('#srcLive').setAttribute('aria-pressed', s === 'live'); $('#srcDemo').setAttribute('aria-pressed', s === 'demo');
+    applySource();
+  };
+  $('#srcLive').addEventListener('click', () => setSource('live'));
+  $('#srcDemo').addEventListener('click', () => setSource('demo'));
+  $('#srcLive').setAttribute('aria-pressed', state.source === 'live'); $('#srcDemo').setAttribute('aria-pressed', state.source === 'demo');
+  $('#inDev').addEventListener('change', e => { state.inDev = e.target.value; persist(); if (state.source === 'live') applySource(); else checkLoop(); });
+  $('#outDev').addEventListener('change', e => { state.outDev = e.target.value; persist(); applyOutput(state.outDev); });
+  $('#rescan').addEventListener('click', () => { banner(''); rescan(); });
+  $('#inGain').value = state.inGain; $('#master').value = state.master;
+  $('#inGain').addEventListener('input', e => { state.inGain = +e.target.value; if (ctx) inGainNode.gain.setTargetAtTime(state.inGain, ctx.currentTime, 0.02); persist(); });
+  $('#master').addEventListener('input', e => { state.master = +e.target.value; if (ctx && !outMuted) master.gain.setTargetAtTime(state.master, ctx.currentTime, 0.02); persist(); });
+  $('#learn').addEventListener('click', () => {
+    learnMode = !learnMode; learnTarget = null;
+    $('#learn').setAttribute('aria-pressed', learnMode);
+    if (learnMode) { startMidi(); banner('MIDI learn is on. Click a knob or footswitch, then move the control on your MIDI device. Click MIDI learn again when done.', 'info'); }
+    else banner('');
+    render();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('select,input,[role="slider"]') || e.metaKey || e.ctrlKey || e.altKey) return;
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= state.order.length) { toggle(state.order[n - 1]); e.preventDefault(); }
+  });
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshDevices());
+  refreshDevices();
+
+  render();
+})();
+</script>
+</body>
+</html>
